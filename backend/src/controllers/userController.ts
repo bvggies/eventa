@@ -4,7 +4,7 @@ import { pool } from '../config/database';
 
 export const getProfile = async (req: AuthRequest, res: Response) => {
   try {
-    const result = await pool.query('SELECT id, name, email, phone, avatar, is_organizer, created_at FROM users WHERE id = $1', [
+    const result = await pool.query('SELECT id, name, email, phone, avatar, is_organizer, is_admin, created_at FROM users WHERE id = $1', [
       req.userId,
     ]);
 
@@ -47,7 +47,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
       .join(', ');
 
     const result = await pool.query(
-      `UPDATE users SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING id, name, email, phone, avatar, is_organizer, created_at`,
+      `UPDATE users SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING id, name, email, phone, avatar, is_organizer, is_admin, created_at`,
       [req.userId, ...values]
     );
 

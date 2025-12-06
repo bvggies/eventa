@@ -1,23 +1,76 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../services/api';
+import { storage } from '../utils/storage';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [storageError, setStorageError] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if localStorage is available on mount
+    const checkStorage = () => {
+      try {
+        if (storage.isBlocked()) {
+          setStorageError(true);
+        }
+      } catch (error) {
+        // Storage check failed, but we'll use memory fallback
+        console.warn('Storage check failed, will use fallback:', error);
+      }
+    };
+    
+    checkStorage();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setStorageError(false);
+
+    // Check storage availability before attempting login
+    if (!storage.isAvailable()) {
+      setStorageError(true);
+      setError('Browser storage is blocked. Please allow cookies/localStorage in your browser settings or disable privacy extensions.');
+      return;
+    }
 
     try {
       const response = await authApi.login(email, password);
-      localStorage.setItem('token', response.data.token);
+      
+      // Try to save token (will use memory fallback if localStorage is blocked)
+      const success = storage.setItem('token', response.data.token);
+      
+      if (!success) {
+        setError('Failed to save login token. The app will use temporary storage (session only).');
+        // Still navigate - memory storage will work for this session
+      }
+      
+      // Check if we're using fallback storage
+      if (storage.isBlocked()) {
+        setStorageError(true);
+        // Show warning but still allow login with memory storage
+        setTimeout(() => {
+          setStorageError(false);
+        }, 5000);
+      }
+
+      // Store user info including admin status
+      if (response.data.user) {
+        storage.setItem('user', JSON.stringify(response.data.user));
+      }
+      
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed');
+      if (err.code === 'ERR_BLOCKED_BY_CLIENT' || err.message?.includes('storage') || err.message?.includes('not allowed')) {
+        setStorageError(true);
+        setError('Browser storage is blocked. The app will use temporary storage for this session only. Please allow cookies/localStorage for persistent login.');
+      } else {
+        setError(err.response?.data?.error || 'Login failed. Please check your credentials and try again.');
+      }
     }
   };
 
@@ -27,9 +80,38 @@ export const LoginPage: React.FC = () => {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">Eventa Admin</h1>
           <p className="text-text-muted">Sign in to manage your events</p>
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-4 p-3 bg-accent-purple/10 border border-accent-purple/30 rounded-lg text-left">
+              <p className="text-xs text-text-muted mb-2 font-semibold">Development Credentials:</p>
+              <div className="mb-2">
+                <p className="text-xs font-semibold text-accent-purple mb-1">🔑 Super Admin:</p>
+                <p className="text-xs text-white">Email: admin@eventa.com</p>
+                <p className="text-xs text-white">Password: admin123</p>
+              </div>
+              <div className="mt-2 pt-2 border-t border-accent-purple/20">
+                <p className="text-xs font-semibold text-accent-teal mb-1">Organizer:</p>
+                <p className="text-xs text-white">Email: organizer@eventa.com</p>
+                <p className="text-xs text-white">Password: password123</p>
+              </div>
+            </div>
+          )}
         </div>
 
-        {error && (
+        {storageError && (
+          <div className="mb-4 p-4 bg-yellow-500/20 border border-yellow-500 rounded-lg text-yellow-400 text-sm">
+            <p className="font-semibold mb-2">⚠️ Storage Access Blocked</p>
+            <p className="mb-2">Your browser extensions are blocking localStorage. The app will work with temporary storage, but you'll need to login again after closing the browser.</p>
+            <p className="mb-2 text-xs">To enable persistent login:</p>
+            <ul className="list-disc list-inside space-y-1 text-xs">
+              <li>Click the extension icon (uBlock Origin, Privacy Badger, etc.) and disable for this site</li>
+              <li>Or allow cookies/localStorage in browser settings</li>
+              <li>Or try a different browser/incognito mode</li>
+            </ul>
+            <p className="mt-2 text-xs italic">You can still login - it will work for this session!</p>
+          </div>
+        )}
+
+        {error && !storageError && (
           <div className="mb-4 p-3 bg-danger/20 border border-danger rounded-lg text-danger text-sm">
             {error}
           </div>

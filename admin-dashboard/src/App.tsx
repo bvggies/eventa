@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -9,9 +9,83 @@ import { AnalyticsPage } from './pages/AnalyticsPage';
 import { AttendeesPage } from './pages/AttendeesPage';
 import { TicketSalesPage } from './pages/TicketSalesPage';
 import { Layout } from './components/Layout';
+import { storage } from './utils/storage';
 
 function App() {
-  const isAuthenticated = localStorage.getItem('token'); // In production, use proper auth state management
+  // Safely check for authentication token (works with localStorage or memory fallback)
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Check authentication on mount
+    const checkAuth = async () => {
+      try {
+        const token = storage.getItem('token');
+        if (token) {
+          setIsAuthenticated(true);
+          // Verify admin status
+          try {
+            const { authApi } = await import('./services/api');
+            const response = await authApi.getCurrentUser();
+            setIsAdmin(response.data.is_admin || false);
+          } catch (error) {
+            // If verification fails, still allow access but mark as non-admin
+            console.warn('Could not verify admin status:', error);
+            setIsAdmin(false);
+          }
+        } else {
+          setIsAuthenticated(false);
+          setIsAdmin(false);
+        }
+      } catch (error) {
+        console.warn('Error checking authentication:', error);
+        setIsAuthenticated(false);
+        setIsAdmin(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+
+    // Listen for storage changes (for cross-tab sync)
+    const handleStorageChange = async () => {
+      try {
+        const token = storage.getItem('token');
+        if (token) {
+          setIsAuthenticated(true);
+          // Verify admin status
+          try {
+            const { authApi } = await import('./services/api');
+            const response = await authApi.getCurrentUser();
+            setIsAdmin(response.data.is_admin || false);
+          } catch (error) {
+            setIsAdmin(false);
+          }
+        } else {
+          setIsAuthenticated(false);
+          setIsAdmin(false);
+        }
+      } catch (error) {
+        setIsAuthenticated(false);
+        setIsAdmin(false);
+      }
+    };
+
+    // Check auth state periodically (for memory storage fallback)
+    const interval = setInterval(handleStorageChange, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-primary-dark flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <Router>

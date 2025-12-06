@@ -28,7 +28,7 @@ export const register = async (req: Request, res: Response) => {
     const result = await pool.query(
       `INSERT INTO users (name, email, password, phone)
        VALUES ($1, $2, $3, $4)
-       RETURNING id, name, email, phone, is_organizer, created_at`,
+       RETURNING id, name, email, phone, is_organizer, is_admin, created_at`,
       [name, email, hashedPassword, phone || null]
     );
 
@@ -48,6 +48,7 @@ export const register = async (req: Request, res: Response) => {
         email: user.email,
         phone: user.phone,
         isOrganizer: user.is_organizer,
+        isAdmin: user.is_admin || false,
         createdAt: user.created_at,
       },
       token,
@@ -100,6 +101,7 @@ export const login = async (req: Request, res: Response) => {
         phone: user.phone,
         avatar: user.avatar,
         isOrganizer: user.is_organizer,
+        isAdmin: user.is_admin || false,
         createdAt: user.created_at,
       },
       token,

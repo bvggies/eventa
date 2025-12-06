@@ -22,9 +22,23 @@ export const initializeDatabase = async () => {
         phone VARCHAR(20),
         avatar TEXT,
         is_organizer BOOLEAN DEFAULT FALSE,
+        is_admin BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Add is_admin column if it doesn't exist (for existing databases)
+    await client.query(`
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'users' AND column_name = 'is_admin'
+        ) THEN
+          ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT FALSE;
+        END IF;
+      END $$;
     `);
 
     // Events table
@@ -173,7 +187,4 @@ export const initializeDatabase = async () => {
     client.release();
   }
 };
-
-// Export for manual initialization
-export { initializeDatabase };
 

@@ -88,6 +88,21 @@ admin-dashboard/
 - Secure API communication
 - Environment variable protection
 
+## 🔑 Login Credentials
+
+Default credentials (development only):
+
+### Super Admin Account
+- **Email**: `admin@eventa.com`
+- **Password**: `admin123`
+- **Role**: Super Admin (Full Access)
+
+### Organizer Account
+- **Email**: `organizer@eventa.com`
+- **Password**: `password123`
+
+See [LOGIN_CREDENTIALS.md](./LOGIN_CREDENTIALS.md) for more details.
+
 ## 📚 Documentation
 
 - [Quick Deploy Guide](./QUICK_DEPLOY.md)
